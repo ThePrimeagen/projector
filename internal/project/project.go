@@ -133,7 +133,7 @@ func (p *Project) print(config *cli.CliConfig) (bool, error) {
 			}
 		} else {
             for k, v := range p.Project.Projects[projectPath] {
-                if _, ok := p.Project.Projects[projectPath][keyName]; !ok {
+                if _, ok := toPrint[k]; !ok {
                     toPrint[k] = v
                 }
             }
@@ -166,6 +166,27 @@ func (p *Project) add(config *cli.CliConfig) (bool, error) {
 
 	return true, nil
 }
+
+func (p *Project) del(config *cli.CliConfig) (bool, error) {
+    projectPath := p.getProjectPath(config.Pwd, 1)
+
+	if projectPath == "" {
+        return false, nil
+    }
+
+    project := p.Project.Projects[projectPath]
+
+    if len(config.AdditionalArgs) > 0 {
+        delete(project, config.AdditionalArgs[0])
+    } else {
+        for k := range project {
+            delete(project, k)
+        }
+    }
+
+	return true, nil
+}
+
 func (p *Project) link(config *cli.CliConfig) (bool, error) {
 	p.Project.Aliases[config.Pwd] = config.AdditionalArgs[0]
 	return true, nil
@@ -191,6 +212,8 @@ func (p *Project) Run(config *cli.CliConfig) (bool, error) {
 		return p.link(config)
 	case "unlink":
 		return p.unlink(config)
+	case "del":
+		return p.del(config)
 	default:
 		return false, fmt.Errorf("file an issue, this should never happen %s", config.Cmd)
 	}

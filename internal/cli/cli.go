@@ -7,14 +7,14 @@ import (
 )
 
 type CliConfig struct {
-	Pwd string
-	Cmd string
-    AdditionalArgs []string
+	Pwd            string
+	Cmd            string
+	AdditionalArgs []string
 }
 
 type CliArgs struct {
-    Pwd string;
-    Args []string;
+	Pwd  string
+	Args []string
 }
 
 func GetCLIArgs() (*CliArgs, error) {
@@ -30,23 +30,31 @@ func GetCLIArgs() (*CliArgs, error) {
 	flag.StringVar(&pwd, "pwd", cwd, "which project to get config for")
 	flag.Parse()
 
-    return &CliArgs{pwd, flag.Args()}, nil
+	return &CliArgs{pwd, flag.Args()}, nil
+}
+
+var commands = map[string]bool{
+    "unlink": true,
+    "link": true,
+    "add": true,
+    "print": true,
+    "del": true,
 }
 
 func isCommand(cmd string) bool {
-    // TODO: Change this to map if I add one more
-    return cmd == "unlink" || cmd == "add" || cmd == "print" || cmd == "link"
+    _, ok := commands[cmd]
+    return ok
 }
 
 func New(cliArgs *CliArgs) (*CliConfig, error) {
 
 	cmd := "print"
-	args := cliArgs.Args;
+	args := cliArgs.Args
 
 	if len(args) > 0 && isCommand(args[0]) {
-        cmd = args[0]
-        args = args[1:]
-    }
+		cmd = args[0]
+		args = args[1:]
+	}
 
 	switch cmd {
 	case "print":
@@ -63,6 +71,10 @@ func New(cliArgs *CliArgs) (*CliConfig, error) {
 		if len(args) != 0 {
 			return nil, errors.New("too many arguments")
 		}
+	case "del":
+		if len(args) > 1 {
+			return nil, errors.New("too many arguments")
+		}
 	case "add":
 		if len(args) < 2 {
 			return nil, errors.New("please provide the command_name followed by the command for add")
@@ -72,6 +84,6 @@ func New(cliArgs *CliArgs) (*CliConfig, error) {
 	return &CliConfig{
 		cliArgs.Pwd,
 		cmd,
-        args,
+		args,
 	}, nil
 }
