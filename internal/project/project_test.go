@@ -119,3 +119,63 @@ func TestPrintFailNoKey(t *testing.T) {
         t.Fatalf("expected print to error since there is no project %+v", err)
     }
 }
+
+func TestPrint(t *testing.T) {
+    pwd := "foo/bar/baz"
+    provider := New()
+    provider.Projects = "{\"foo/bar/baz\": {}}"
+
+    config := cli.CliConfig{
+        Pwd: pwd,
+        Cmd: "print",
+        AdditionalArgs: []string{},
+    }
+
+    project, err := project.New(&config, &provider)
+
+    if err != nil {
+        t.Fatalf("expected new#print to not error %+v", err)
+    }
+
+    // TODO: Run should probably not print, but return output, or have
+    // output provider..
+    changed, err := project.Run(&config)
+
+    if err != nil {
+        t.Fatalf("expected print to not have error %+v", err)
+    }
+
+    if changed {
+      t.Fatalf("expected no changed since this is a print operation.")
+    }
+}
+
+func TestPrintWithParentDir(t *testing.T) {
+    pwd := "foo/bar/baz"
+    provider := New()
+    provider.Projects = "{\"foo\": {}}"
+
+    config := cli.CliConfig{
+        Pwd: pwd,
+        Cmd: "print",
+        AdditionalArgs: []string{},
+    }
+
+    project, err := project.New(&config, &provider)
+
+    if err != nil {
+        t.Fatalf("expected new#print to not error %+v", err)
+    }
+
+    // TODO: Run should probably not print, but return output, or have
+    // output provider..
+    changed, err := project.Run(&config)
+
+    if err != nil {
+        t.Fatalf("expected print to not have error %+v", err)
+    }
+
+    if changed {
+        t.Fatalf("expected no changed since this is a print operation.")
+    }
+}

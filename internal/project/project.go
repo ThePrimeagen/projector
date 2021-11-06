@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/theprimeagen/projectizer/internal/cli"
@@ -31,13 +32,13 @@ func getProjectPath() string {
 
 type ProjectDataProvider interface {
 	Get(config *cli.CliConfig) ([]byte, string, error)
-    Set(path string, data []byte) error
+	Set(path string, data []byte) error
 }
 
 type Project struct {
-	path    string
-	Project ProjectJSON
-    provider ProjectDataProvider
+	path     string
+	Project  ProjectJSON
+	provider ProjectDataProvider
 }
 
 type FileDataProvider struct{}
@@ -51,111 +52,146 @@ func (p *FileDataProvider) Get(config *cli.CliConfig) ([]byte, string, error) {
 		}
 	}
 
-    proj, err := os.ReadFile(projectPath)
+	proj, err := os.ReadFile(projectPath)
 
-    return proj, projectPath, err
+	return proj, projectPath, err
 }
 
 func (p *FileDataProvider) Set(path string, data []byte) error {
-    return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0644)
 }
 
 func New(config *cli.CliConfig, provider ProjectDataProvider) (*Project, error) {
 	proj, projectPath, err := provider.Get(config)
 
 	if err != nil {
-        return nil, err
+		return nil, err
 	}
 
 	var data ProjectJSON
 	err = json.Unmarshal(proj, &data)
 	if err != nil {
-        return nil, err
+		return nil, err
 	}
 
-    return &Project{path: projectPath, Project: data, provider: provider}, nil
+	return &Project{path: projectPath, Project: data, provider: provider}, nil
 }
 
 func (p *Project) Save() error {
-    proj, err := json.Marshal(p.Project)
-    if err != nil {
-        return err
-    }
+	proj, err := json.Marshal(p.Project)
+	if err != nil {
+		return err
+	}
 
-    p.provider.Set(p.path, proj)
+	p.provider.Set(p.path, proj)
 	return nil
 }
 
-func (p *Project) print(projectPath string, config *cli.CliConfig) (bool, error) {
-    if len(projectPath) == 0 {
-        return false, errors.New("couldn't find project")
-    }
+func filePathPop(path string) string {
+	// I don't like this.
+	path, _ = filepath.Split(path)
+	path = path[0 : len(path)-1]
 
-    if len(config.AdditionalArgs) > 0 {
-        keyName := config.AdditionalArgs[0]
-        if val, ok := p.Project.Projects[projectPath][keyName]; ok {
-            projJSON, _ := json.Marshal(val)
-            fmt.Println(string(projJSON))
-        } else {
-            return false, fmt.Errorf("no key found in this project with name %q", keyName)
-        }
-    } else {
-        projJSON, _ := json.Marshal(p.Project.Projects[projectPath])
+	return path
+}
+
+func (p *Project) getProjectPath(base string, depth int) string {
+	projectPath := ""
+	for ; depth != 0; depth-- {
+		if val, ok := p.Project.Aliases[base]; ok {
+			projectPath = val
+			break
+		}
+
+		if _, ok := p.Project.Projects[base]; ok {
+			projectPath = base
+			break
+		}
+
+		base = filePathPop(base)
+		if len(base) == 0 {
+			break
+		}
+	}
+
+	return projectPath
+}
+
+func (p *Project) print(config *cli.CliConfig) (bool, error) {
+	keyName := ""
+	if len(config.AdditionalArgs) > 0 {
+		keyName = config.AdditionalArgs[0]
+	}
+
+    toPrint := make(map[string]string)
+    projectPath := p.getProjectPath(config.Pwd, -1)
+	for ; len(projectPath) != 0; projectPath = p.getProjectPath(filePathPop(projectPath), -1) {
+		if len(keyName) > 0 {
+			if val, ok := p.Project.Projects[projectPath][keyName]; ok {
+				fmt.Println(val)
+				break
+			}
+		} else {
+            for k, v := range p.Project.Projects[projectPath] {
+                if _, ok := p.Project.Projects[projectPath][keyName]; !ok {
+                    toPrint[k] = v
+                }
+            }
+		}
+	}
+
+    if len(toPrint) > 0 {
+        projJSON, _ := json.Marshal(toPrint)
         fmt.Println(string(projJSON))
-    }
+    } else if len(projectPath) == 0 {
+		return false, errors.New("couldn't find project")
+	}
 
-    return false, nil
+	return false, nil
 }
 
-func (p *Project) add(projectPath string, config *cli.CliConfig) (bool, error) {
-    keyName := config.AdditionalArgs[0]
-    value := strings.Join(config.AdditionalArgs[1:], " ")
+func (p *Project) add(config *cli.CliConfig) (bool, error) {
+	keyName := config.AdditionalArgs[0]
+	value := strings.Join(config.AdditionalArgs[1:], " ")
 
-    if projectPath == "" {
-        projectPath = config.Pwd
-        p.Project.Projects[projectPath] = map[string]string{
-            keyName: value,
-        }
-    } else {
-        p.Project.Projects[projectPath][keyName] = value
-    }
+    projectPath := p.getProjectPath(config.Pwd, 1)
+	if projectPath == "" {
+		projectPath = config.Pwd
+		p.Project.Projects[projectPath] = map[string]string{
+			keyName: value,
+		}
+	} else {
+		p.Project.Projects[projectPath][keyName] = value
+	}
 
-    return true, nil
+	return true, nil
 }
-func (p *Project) link(projectPath string, config *cli.CliConfig) (bool, error) {
-    p.Project.Aliases[config.Pwd] = config.AdditionalArgs[0]
-    return true, nil
+func (p *Project) link(config *cli.CliConfig) (bool, error) {
+	p.Project.Aliases[config.Pwd] = config.AdditionalArgs[0]
+	return true, nil
 }
 
-func (p *Project) unlink(projectPath string, config *cli.CliConfig) (bool, error) {
-    _, ok := p.Project.Aliases[config.Pwd];
-    if ok {
-        delete(p.Project.Aliases, config.Pwd)
-    }
-    return true, nil
+func (p *Project) unlink(config *cli.CliConfig) (bool, error) {
+	_, ok := p.Project.Aliases[config.Pwd]
+	if ok {
+		delete(p.Project.Aliases, config.Pwd)
+	}
+	return true, nil
 }
 
 func (p *Project) Run(config *cli.CliConfig) (bool, error) {
-	projectPath := ""
-	if val, ok := p.Project.Aliases[config.Pwd]; ok {
-		projectPath = val
-	} else if _, ok := p.Project.Projects[config.Pwd]; ok {
-		projectPath = config.Pwd
-	}
-
-	changed := false
 
 	// run the Effing project
 	switch config.Cmd {
-    case "print":
-        return p.print(projectPath, config)
+	case "print":
+		return p.print(config)
 	case "add":
-        return p.add(projectPath, config)
+		return p.add(config)
 	case "link":
-        return p.link(projectPath, config)
+		return p.link(config)
 	case "unlink":
-        return p.unlink(projectPath, config)
+		return p.unlink(config)
+	default:
+		return false, fmt.Errorf("file an issue, this should never happen %s", config.Cmd)
 	}
-
-	return changed, nil
 }
