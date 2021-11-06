@@ -8,10 +8,20 @@ import (
 	"github.com/theprimeagen/projectizer/internal/project"
 )
 
-type EmptyProvider struct {}
+type EmptyProvider struct {
+    Aliases string;
+    Projects string;
+}
+
+func New() EmptyProvider {
+    return EmptyProvider{
+        Aliases: "{}",
+        Projects: "{}",
+    }
+}
 
 func (t *EmptyProvider) Get(config *cli.CliConfig) ([]byte, string, error) {
-    return []byte("{\"aliases\": {}, \"projects\": {}}"), "foo/bar", nil
+    return []byte(fmt.Sprintf("{\"aliases\": %s, \"projects\": %s}", t.Aliases, t.Projects)), "foo/bar", nil
 }
 
 func (t *EmptyProvider) Set(path string, data []byte) error {
@@ -20,7 +30,7 @@ func (t *EmptyProvider) Set(path string, data []byte) error {
 
 func TestAdd(t *testing.T) {
     pwd := "foo/bar/baz"
-    provider := EmptyProvider{}
+    provider := New()
     config := cli.CliConfig{
         Pwd: pwd,
         Cmd: "add",
@@ -64,3 +74,48 @@ func TestAdd(t *testing.T) {
     }
 }
 
+func TestPrintFailNoProject(t *testing.T) {
+    pwd := "foo/bar/baz"
+    provider := New()
+    config := cli.CliConfig{
+        Pwd: pwd,
+        Cmd: "print",
+        AdditionalArgs: []string{},
+    }
+
+    project, err := project.New(&config, &provider)
+
+    if err != nil {
+        t.Fatalf("expected new#print to not error %+v", err)
+    }
+
+    _, err = project.Run(&config)
+
+    if err == nil {
+        t.Fatalf("expected print to error since there is no project %+v", err)
+    }
+}
+
+func TestPrintFailNoKey(t *testing.T) {
+    pwd := "foo/bar/baz"
+    provider := New()
+    provider.Projects = fmt.Sprintf("{\"%s\": {}}", pwd)
+
+    config := cli.CliConfig{
+        Pwd: pwd,
+        Cmd: "print",
+        AdditionalArgs: []string{"foo"},
+    }
+
+    project, err := project.New(&config, &provider)
+
+    if err != nil {
+        t.Fatalf("expected new#print to not error %+v", err)
+    }
+
+    _, err = project.Run(&config)
+
+    if err == nil {
+        t.Fatalf("expected print to error since there is no project %+v", err)
+    }
+}

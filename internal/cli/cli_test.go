@@ -58,6 +58,34 @@ func TestAddSuccess(t *testing.T) {
     }
 }
 
+func TestPrintWithTooManyArgs(t *testing.T) {
+    pwd := "foo/bar/baz"
+    _, err := cli.New(&cli.CliArgs{
+        pwd,
+        []string{"foo", "bar"},
+    })
+
+    if err == nil {
+        t.Fatalf("expected to fail with an error")
+    }
+}
+
+func TestPrintWithArg(t *testing.T) {
+    pwd := "foo/bar/baz"
+    config, err := cli.New(&cli.CliArgs{
+        pwd,
+        []string{"foo"},
+    })
+
+    if err != nil {
+        t.Fatalf("expected print not error.")
+    }
+
+    if config.Cmd != "print" {
+        t.Fatalf("expected cmd to be print but got %q", config.Cmd)
+    }
+}
+
 func TestPrint(t *testing.T) {
     pwd := "foo/bar/baz"
     config, err := cli.New(&cli.CliArgs{

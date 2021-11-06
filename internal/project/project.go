@@ -86,6 +86,55 @@ func (p *Project) Save() error {
 	return nil
 }
 
+func (p *Project) print(projectPath string, config *cli.CliConfig) (bool, error) {
+    if len(projectPath) == 0 {
+        return false, errors.New("couldn't find project")
+    }
+
+    if len(config.AdditionalArgs) > 0 {
+        keyName := config.AdditionalArgs[0]
+        if val, ok := p.Project.Projects[projectPath][keyName]; ok {
+            projJSON, _ := json.Marshal(val)
+            fmt.Println(string(projJSON))
+        } else {
+            return false, fmt.Errorf("no key found in this project with name %q", keyName)
+        }
+    } else {
+        projJSON, _ := json.Marshal(p.Project.Projects[projectPath])
+        fmt.Println(string(projJSON))
+    }
+
+    return false, nil
+}
+
+func (p *Project) add(projectPath string, config *cli.CliConfig) (bool, error) {
+    keyName := config.AdditionalArgs[0]
+    value := strings.Join(config.AdditionalArgs[1:], " ")
+
+    if projectPath == "" {
+        projectPath = config.Pwd
+        p.Project.Projects[projectPath] = map[string]string{
+            keyName: value,
+        }
+    } else {
+        p.Project.Projects[projectPath][keyName] = value
+    }
+
+    return true, nil
+}
+func (p *Project) link(projectPath string, config *cli.CliConfig) (bool, error) {
+    p.Project.Aliases[config.Pwd] = config.AdditionalArgs[0]
+    return true, nil
+}
+
+func (p *Project) unlink(projectPath string, config *cli.CliConfig) (bool, error) {
+    _, ok := p.Project.Aliases[config.Pwd];
+    if ok {
+        delete(p.Project.Aliases, config.Pwd)
+    }
+    return true, nil
+}
+
 func (p *Project) Run(config *cli.CliConfig) (bool, error) {
 	projectPath := ""
 	if val, ok := p.Project.Aliases[config.Pwd]; ok {
@@ -98,31 +147,14 @@ func (p *Project) Run(config *cli.CliConfig) (bool, error) {
 
 	// run the Effing project
 	switch config.Cmd {
-	case "print":
-		if len(projectPath) == 0 {
-			return false, errors.New("couldn't find project")
-		}
-
-		projJSON, _ := json.Marshal(p.Project.Projects[projectPath])
-		fmt.Println(string(projJSON))
+    case "print":
+        return p.print(projectPath, config)
 	case "add":
-
-		keyName := config.AdditionalArgs[0]
-		value := strings.Join(config.AdditionalArgs[1:], " ")
-
-		if projectPath == "" {
-            projectPath = config.Pwd
-			p.Project.Projects[projectPath] = map[string]string{
-				keyName: value,
-			}
-		} else {
-			p.Project.Projects[projectPath][keyName] = value
-		}
-
-		changed = true
-
+        return p.add(projectPath, config)
 	case "link":
-		// toDir := p.config.AdditionalArgs[0]
+        return p.link(projectPath, config)
+	case "unlink":
+        return p.unlink(projectPath, config)
 	}
 
 	return changed, nil

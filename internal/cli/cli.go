@@ -33,20 +33,25 @@ func GetCLIArgs() (*CliArgs, error) {
     return &CliArgs{pwd, flag.Args()}, nil
 }
 
+func isCommand(cmd string) bool {
+    // TODO: Change this to map if I add one more
+    return cmd == "unlink" || cmd == "add" || cmd == "print" || cmd == "link"
+}
+
 func New(cliArgs *CliArgs) (*CliConfig, error) {
 
 	cmd := "print"
 	args := cliArgs.Args;
 
-	if len(args) > 0 {
-		cmd = args[0]
+	if len(args) > 0 && isCommand(args[0]) {
+        cmd = args[0]
         args = args[1:]
-	}
+    }
 
 	switch cmd {
 	case "print":
-		if len(args) > 0 {
-			return nil, errors.New("too many arguments")
+		if len(args) > 1 {
+			return nil, errors.New("too many arguments, print can take in 1 argument to print that key for this project")
 		}
 	case "link":
 		if len(args) == 0 {
@@ -54,12 +59,14 @@ func New(cliArgs *CliArgs) (*CliConfig, error) {
 		} else if len(args) > 1 {
 			return nil, errors.New("too many arguments")
 		}
+	case "unlink":
+		if len(args) != 0 {
+			return nil, errors.New("too many arguments")
+		}
 	case "add":
 		if len(args) < 2 {
 			return nil, errors.New("please provide the command_name followed by the command for add")
 		}
-	default:
-        return nil, errors.New("invalid command provided")
 	}
 
 	return &CliConfig{
