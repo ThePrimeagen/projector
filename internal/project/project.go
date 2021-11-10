@@ -21,13 +21,35 @@ type ProjectJSON struct {
 
 func getProjectPath() string {
 
-	// TODO: Make this better...
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("%+v\n", err)
-	}
+    projectorPath := os.Getenv("PROJECTOR_PATH")
+    if projectorPath != "" {
+        return projectorPath
+    }
 
-	return path.Join(home, "./.project.json")
+	userConfig, _ := os.UserConfigDir()
+	userConfigDir := path.Join(userConfig, "/projector")
+    userConfig = path.Join(userConfig, "/projector", "./project.json")
+
+    if _, err := os.Stat(userConfig); os.IsExist(err) {
+        return userConfig
+    }
+
+	// TODO: Make this better...
+	home, _ := os.UserHomeDir()
+    home = path.Join(home, "./.project.json")
+
+    if _, err := os.Stat(home); os.IsExist(err) {
+        return home
+    }
+
+    if _, err := os.Stat(userConfigDir); os.IsNotExist(err) {
+        err := os.Mkdir(userConfigDir, 0755)
+        if err != nil {
+            log.Fatalf("%+v\n", err)
+        }
+    }
+
+	return userConfig
 }
 
 type ProjectDataProvider interface {
@@ -214,6 +236,9 @@ func (p *Project) Run(config *cli.CliConfig) (bool, error) {
 		return p.unlink(config)
 	case "del":
 		return p.del(config)
+	case "which":
+        fmt.Println(p.path)
+        return false, nil
 	default:
 		return false, fmt.Errorf("file an issue, this should never happen %s", config.Cmd)
 	}

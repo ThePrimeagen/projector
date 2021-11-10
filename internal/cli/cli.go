@@ -79,6 +79,10 @@ func New(cliArgs *CliArgs) (*CliConfig, error) {
 		if len(args) < 2 {
 			return nil, errors.New("please provide the command_name followed by the command for add")
 		}
+	case "which":
+		if len(args) > 0 {
+			return nil, errors.New("too many additional arguments")
+		}
 	}
 
 	return &CliConfig{
