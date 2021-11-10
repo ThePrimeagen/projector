@@ -22,7 +22,7 @@ If you provide no arguments to projector, this is the default behavior
 <pre>
 will link the cwd (or pwd) to another directories config.
 This is useful for mirroring configs
-<b>projector</b> [--pwd] <b>link</b> <i>absolute/to/other/directory</i>
+<b>projector</b> [--pwd] <b>link</b> <i>/absolute/to/other/directory</i>
 </pre>
 
 <pre>
