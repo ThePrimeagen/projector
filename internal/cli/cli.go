@@ -39,6 +39,7 @@ var commands = map[string]bool{
     "add": true,
     "print": true,
     "del": true,
+    "which": true,
 }
 
 func isCommand(cmd string) bool {
