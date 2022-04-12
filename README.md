@@ -13,7 +13,7 @@ go build -o ~/.local/bin/projector ./cmd
 ### Commands
 #### Available Commands
 <pre>
-prints out the configuration for the current director and its parents.
+prints out the configuration for the current directory and its parents.
 If you provide no arguments to projector, this is the default behavior
 <b>projector</b> [--pwd] <b>print</b> [<i>key</i>]
 <b>projector</b> [--pwd] [<i>key</i>]
